@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Image Text Overlay Tool</title>
+  <style>
+    @font-face {
+      font-family: 'CustomFont';
+      src: url('custom-font.ttf') format('truetype');
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      background-color: #3f1414; /* Background color */
+      color: white; /* White text for contrast */
+      margin: 0;
+      padding: 0;
+    }
+    canvas {
+      border: 1px solid #ccc;
+      display: block;
+      margin: 20px auto;
+    }
+    .controls {
+      margin: 20px;
+    }
+    .controls input, .controls label, .controls button {
+      margin: 5px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Crashout Image Generator</h1>
+
+  <div class="controls">
+    <label for="imageUpload">Upload Image:</label>
+    <input type="file" id="imageUpload" accept="image/*"><br>
+
+    <canvas id="canvas"></canvas>
+
+    
+    <label for="colorPicker">Text Color:</label>
+    <input type="color" id="colorPicker" value="#000000"><br>
+
+    <label for="outlineToggle">Text Outline:</label>
+    <input type="checkbox" id="outlineToggle"><br>
+    
+    <label for="outlineColorPicker">Outline Color:</label>
+    <input type="color" id="outlineColorPicker" value="#FFFFFF" disabled><br>
+
+    <label for="outlineWidthSlider">Outline Width:</label>
+    <input type="range" id="outlineWidthSlider" min="1" max="10" value="2" disabled><br>
+
+    <label for="fontSizeSlider">Font Size:</label>
+    <input type="range" id="fontSizeSlider" min="10" max="200" value="75"><br>
+    
+    <label for="xPosSlider">Text X Position:</label>
+    <input type="range" id="xPosSlider" min="0" max="100" value="50"><br>
+    
+    <label for="yPosSlider">Text Y Position:</label>
+    <input type="range" id="yPosSlider" min="0" max="100" value="50"><br>
+    
+    <button id="resetBtn">Reset Position</button>
+    <button id="downloadBtn">Download Image</button>
+  </div>
+
+
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const imageUpload = document.getElementById('imageUpload');
+    const colorPicker = document.getElementById('colorPicker');
+    const outlineToggle = document.getElementById('outlineToggle');
+    const outlineColorPicker = document.getElementById('outlineColorPicker');
+    const outlineWidthSlider = document.getElementById('outlineWidthSlider');
+    const fontSizeSlider = document.getElementById('fontSizeSlider');
+    const xPosSlider = document.getElementById('xPosSlider');
+    const yPosSlider = document.getElementById('yPosSlider');
+    const resetBtn = document.getElementById('resetBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
+
+    let image = new Image();
+    let customFontLoaded = false;
+
+    // Load the custom font
+    const loadFont = () => {
+      const font = new FontFace('CustomFont', 'url(custom-font.ttf)');
+      return font.load().then((loadedFont) => {
+        document.fonts.add(loadedFont);
+        customFontLoaded = true;
+        drawCanvas();
+      }).catch((error) => console.error('Failed to load custom font:', error));
+    };
+
+    loadFont(); // Call this function to preload the font
+
+    imageUpload.addEventListener('change', (event) => {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          image.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    image.onload = () => {
+      canvas.width = image.width;
+      canvas.height = image.height;
+      drawCanvas();
+    };
+
+    const drawCanvas = () => {
+      if (!customFontLoaded || !image.src) return; // Ensure font is loaded and image is present before drawing
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+      const text = "Crashout"; // Fixed text
+      const fontSize = parseInt(fontSizeSlider.value, 10); // Font size from slider
+      ctx.font = `${fontSize}px CustomFont`; // Use the custom font
+      ctx.fillStyle = colorPicker.value;
+
+      // Measure text
+      const textWidth = ctx.measureText(text).width;
+      const textHeight = fontSize; // Approximation of font height
+      const baselineOffset = textHeight / 2; // Adjust for baseline
+
+      // Get text position from sliders
+      const x = (canvas.width - textWidth) * (xPosSlider.value / 100); // X position as a percentage
+      const y = canvas.height * (yPosSlider.value / 100) + baselineOffset; // Adjust for baseline centering
+
+      // Draw text outline if enabled
+      if (outlineToggle.checked) {
+        const outlineColor = outlineColorPicker.value;
+        const outlineWidth = parseInt(outlineWidthSlider.value, 10);
+
+        ctx.lineWidth = outlineWidth;
+        ctx.strokeStyle = outlineColor;
+        ctx.strokeText(text, x, y);
+      }
+
+      // Draw text fill
+      ctx.fillText(text, x, y);
+    };
+
+    colorPicker.addEventListener('input', drawCanvas);
+    outlineToggle.addEventListener('change', () => {
+      const isEnabled = outlineToggle.checked;
+      outlineColorPicker.disabled = !isEnabled;
+      outlineWidthSlider.disabled = !isEnabled;
+      drawCanvas();
+    });
+    outlineColorPicker.addEventListener('input', drawCanvas);
+    outlineWidthSlider.addEventListener('input', drawCanvas);
+    fontSizeSlider.addEventListener('input', drawCanvas);
+    xPosSlider.addEventListener('input', drawCanvas);
+    yPosSlider.addEventListener('input', drawCanvas);
+
+    // Reset Position Button Functionality
+    resetBtn.addEventListener('click', () => {
+      xPosSlider.value = 50; // Reset X position to default (center)
+      yPosSlider.value = 50; // Reset Y position to default (center)
+      drawCanvas(); // Redraw the canvas with default values
+    });
+
+    downloadBtn.addEventListener('click', () => {
+      const link = document.createElement('a');
+      link.download = 'image-with-text.png';
+      link.href = canvas.toDataURL();
+      link.click();
+    });
+  </script>
+</body>
+</html>
